@@ -1,80 +1,71 @@
+require("dotenv").config();
 const express = require("express");
+const mongoose = require("mongoose");
 const cors = require("cors");
 
 const app = express();
-const PORT = 5000;
 
 // Middleware
-app.use(cors());
 app.use(express.json());
+app.use(cors());
 
-// In-memory notes storage
-let notes = [];
+// Import Model
+const Note = require("./models/Note");
 
-// Test route
-app.get("/", (req, res) => {
-  res.send("Backend server is running 🚀");
-});
+// MongoDB Connection
+mongoose.connect(process.env.MONGO_URI)
+.then(() => console.log("✅ MongoDB Connected"))
+.catch(err => console.log(err));
 
-// Create note
-app.post("/notes", (req, res) => {
-  const { title, content } = req.body;
+// ================= ROUTES =================
 
-  if (!title || !content) {
-    return res.status(400).json({ error: "Title and content required" });
+// ✅ CREATE Note
+app.post("/notes", async (req, res) => {
+  try {
+    const note = await Note.create(req.body);
+    res.json(note);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-
-  const newNote = {
-    id: Date.now(),
-    title,
-    content,
-  };
-
-  notes.push(newNote);
-  res.json(newNote);
 });
 
-// Get all notes
-app.get("/notes", (req, res) => {
-  res.json(notes);
-});
-
-// Update a note
-app.put("/notes/:id", (req, res) => {
-  const noteId = Number(req.params.id);
-  const { title, content } = req.body;
-
-  const noteIndex = notes.findIndex(note => note.id === noteId);
-
-  if (noteIndex === -1) {
-    return res.status(404).json({ error: "Note not found" });
+// ✅ GET All Notes
+app.get("/notes", async (req, res) => {
+  try {
+    const notes = await Note.find();
+    res.json(notes);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
+});
 
-  if (!title || !content) {
-    return res.status(400).json({ error: "Title and content required" });
+// ✅ UPDATE Note
+app.put("/notes/:id", async (req, res) => {
+  try {
+    const updatedNote = await Note.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    res.json(updatedNote);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-
-  notes[noteIndex] = {
-    ...notes[noteIndex],
-    title,
-    content
-  };
-
-  res.json({
-    message: "Note updated successfully",
-    note: notes[noteIndex]
-  });
 });
 
-// Delete a note
-app.delete("/notes/:id", (req, res) => {
-  const noteId = Number(req.params.id);
-  notes = notes.filter(note => note.id !== noteId);
-  res.json({ message: "Note deleted successfully" });
+// ✅ DELETE Note
+app.delete("/notes/:id", async (req, res) => {
+  try {
+    await Note.findByIdAndDelete(req.params.id);
+    res.json({ message: "Note deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Start server (ALWAYS LAST)
-app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
-});
+// ==========================================
 
+// Start Server
+app.listen(5000, () => {
+  console.log("🚀 Server started on port 5000");
+});
